@@ -22,14 +22,28 @@ int result_array_size = 1024;
 char **result_array;
 int result_array_index = 0;
 
+<<<<<<< HEAD
 void search_directory(void *dir_path);
+=======
+#ifndef DT_DIR
+#define DT_DIR 4
+#endif
+
+void *search_directory(void *arg);
+>>>>>>> ea7c1cd9ba23f627b1f0139b00803846e31a1a4f
 void process_file(const char *path);
 void handle_sigint(int sig);
 void print_progress(int signum);
 
+<<<<<<< HEAD
 void search_directory(void *dir_path)
 {
     DIR *dir = opendir((char *)dir_path);
+=======
+void *search_directory(void *dir_path)
+{
+    DIR *dir = opendir(dir_path);
+>>>>>>> ea7c1cd9ba23f627b1f0139b00803846e31a1a4f
     if (dir == NULL)
     {
         perror("Failed to open directory");
@@ -82,6 +96,7 @@ void process_file(const char *path)
         }
     }
 
+<<<<<<< HEAD
     char *extension = strrchr(path, '.');
     if (extension != NULL)
     {
@@ -89,6 +104,9 @@ void process_file(const char *path)
     }
 
     if (result_array_index == result_array_size)
+=======
+    if (file_count == result_array_size)
+>>>>>>> ea7c1cd9ba23f627b1f0139b00803846e31a1a4f
     {
         result_array_size *= 2;
         result_array = realloc(result_array, result_array_size * sizeof(char *));
@@ -100,6 +118,7 @@ void process_file(const char *path)
         }
     }
 
+<<<<<<< HEAD
     result_array[result_array_index] = strdup(path);
     result_array_index++;
     file_count++; // Increase file_count for each new file discovered
@@ -108,6 +127,10 @@ void process_file(const char *path)
     {
         fprintf(output_fp, "%s\n", path);
     }
+=======
+    result_array[file_count] = strdup(path);
+    file_count++;
+>>>>>>> ea7c1cd9ba23f627b1f0139b00803846e31a1a4f
 
     pthread_mutex_unlock(&result_mutex);
 }
@@ -140,6 +163,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+<<<<<<< HEAD
     result_array = calloc(result_array_size, sizeof(char *));
     if (result_array == NULL)
     {
@@ -147,6 +171,8 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+=======
+>>>>>>> ea7c1cd9ba23f627b1f0139b00803846e31a1a4f
     for (int i = 1; i < argc; i++)
     {
         if (strncmp(argv[i], "-t=", 3) == 0)
@@ -182,7 +208,11 @@ int main(int argc, char *argv[])
     pthread_t threads[MAX_THREADS];
     for (int i = 0; i < max_threads; i++)
     {
+<<<<<<< HEAD
         pthread_create(&threads[i], NULL, (void *(*)(void *))search_directory, (void *)dir_path);
+=======
+        pthread_create(&threads[i], NULL, search_directory, (void *)dir_path);
+>>>>>>> ea7c1cd9ba23f627b1f0139b00803846e31a1a4f
     }
 
     for (int i = 0; i < max_threads; i++)
@@ -197,6 +227,7 @@ int main(int argc, char *argv[])
     }
     pthread_mutex_unlock(&result_mutex);
 
+<<<<<<< HEAD
     // Print the result array with grouped file paths
     printf("[\n");
 
@@ -236,6 +267,22 @@ int main(int argc, char *argv[])
 
     // Free allocated memory
     for (int i = 0; i < result_array_index; i++)
+=======
+    // Print the result array
+    printf("[\n");
+    for (int i = 0; i < file_count; i++)
+    {
+        printf("%s", result_array[i]);
+        if (i < file_count - 1)
+        {
+            printf(",\n");
+        }
+    }
+    printf("\n]\n");
+
+    // Free allocated memory
+    for (int i = 0; i < file_count; i++)
+>>>>>>> ea7c1cd9ba23f627b1f0139b00803846e31a1a4f
     {
         free(result_array[i]);
     }
