@@ -11,23 +11,23 @@
 
 #define MAX_THREADS 64
 
-int max_threads = 1;
-int max_file_size = 1024;
+int default_threads = 1;
+int default_file_size = 1024;
 char *output_file = NULL;
-pthread_mutex_t result_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t file_paths_mutex = PTHREAD_MUTEX_INITIALIZER;
 FILE *output_fp = NULL;
 int file_count = 0;
 int search_count = 0;
-int result_array_size = 1024;
-char **result_array;
-int result_array_index = 0;
+int file_paths_size = 1024;
+char **file_paths;
+int file_paths_index = 0;
 
-void search_directory(void *dir_path);
-void process_file(const char *path);
-void handle_sigint(int sig);
-void print_progress(int signum);
+void searchDirectory(void *dir_path);
+void processFile(const char *path);
+void handleSigInt(int sig);
+void printProgress(int signum);
 
-void search_directory(void *dir_path)
+void searchDirectory(void *dir_path)
 {
     DIR *dir = opendir((char *)dir_path);
     if (dir == NULL)
@@ -44,26 +44,26 @@ void search_directory(void *dir_path)
             continue;
         }
 
-        char full_path[max_file_size];
-        snprintf(full_path, max_file_size, "%s/%s", (char *)dir_path, entry->d_name);
+        char full_path[default_file_size];
+        snprintf(full_path, default_file_size, "%s/%s", (char *)dir_path, entry->d_name);
 
         if (entry->d_type == DT_DIR)
         {
             // Found a subdirectory, recursively search inside it
-            search_directory(full_path);
+            searchDirectory(full_path);
         }
         else
         {
-            process_file(full_path);
+            processFile(full_path);
         }
     }
 
     closedir(dir);
 }
 
-void process_file(const char *path)
+void processFile(const char *path)
 {
-    pthread_mutex_lock(&result_mutex);
+    pthread_mutex_lock(&file_paths_mutex);
     if (output_fp == NULL)
     {
         if (output_file != NULL)
@@ -72,7 +72,7 @@ void process_file(const char *path)
             if (output_fp == NULL)
             {
                 fprintf(stderr, "Failed to open output file: %s\n", output_file);
-                pthread_mutex_unlock(&result_mutex);
+                pthread_mutex_unlock(&file_paths_mutex);
                 return;
             }
         }
@@ -88,20 +88,20 @@ void process_file(const char *path)
         extension++; // Move past the dot (.)
     }
 
-    if (result_array_index == result_array_size)
+    if (file_paths_index == file_paths_size)
     {
-        result_array_size *= 2;
-        result_array = realloc(result_array, result_array_size * sizeof(char *));
-        if (result_array == NULL)
+        file_paths_size *= 2;
+        file_paths = realloc(file_paths, file_paths_size * sizeof(char *));
+        if (file_paths == NULL)
         {
             fprintf(stderr, "Failed to allocate memory\n");
-            pthread_mutex_unlock(&result_mutex);
+            pthread_mutex_unlock(&file_paths_mutex);
             exit(1);
         }
     }
 
-    result_array[result_array_index] = strdup(path);
-    result_array_index++;
+    file_paths[file_paths_index] = strdup(path);
+    file_paths_index++;
     file_count++; // Increase file_count for each new file discovered
 
     if (output_fp != stdout)
@@ -109,32 +109,34 @@ void process_file(const char *path)
         fprintf(output_fp, "%s\n", path);
     }
 
-    pthread_mutex_unlock(&result_mutex);
+    pthread_mutex_unlock(&file_paths_mutex);
 }
 
-void handle_sigint(int sig)
+void handleSigInt(int sig)
 {
     signal(sig, SIG_IGN); // Ignore subsequent SIGINT signals
-    pthread_mutex_lock(&result_mutex);
+    pthread_mutex_lock(&file_paths_mutex);
     if (output_fp != NULL && output_fp != stdout)
     {
         fclose(output_fp);
     }
-    pthread_mutex_unlock(&result_mutex);
+    pthread_mutex_unlock(&file_paths_mutex);
     exit(0);
 }
 
-void print_progress(int signum)
+void printProgress(int signum)
 {
-    pthread_mutex_lock(&result_mutex);
+    pthread_mutex_lock(&file_paths_mutex);
     fprintf(stderr, "Files found: %d\n", file_count);
-    pthread_mutex_unlock(&result_mutex);
+    fprintf(stderr, "Search count: %d\n", search_count);
+    pthread_mutex_unlock(&file_paths_mutex);
+    signal(SIGALRM, printProgress); // Re-register the signal handler
     alarm(5); // Set alarm for the next 5 seconds
 }
 
-void *thread_start(void *dir_path)
+void *threadStart(void *dir_path)
 {
-    search_directory(dir_path);
+    searchDirectory(dir_path);
     return NULL;
 }
 
@@ -146,8 +148,8 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    result_array = calloc(result_array_size, sizeof(char *));
-    if (result_array == NULL)
+    file_paths = calloc(file_paths_size, sizeof(char *));
+    if (file_paths == NULL)
     {
         fprintf(stderr, "Failed to allocate memory\n");
         return 1;
@@ -157,19 +159,19 @@ int main(int argc, char *argv[])
     {
         if (strncmp(argv[i], "-t=", 3) == 0)
         {
-            max_threads = atoi(argv[i] + 3);
-            if (max_threads < 1 || max_threads > MAX_THREADS)
+            default_threads = atoi(argv[i] + 3);
+            if (default_threads < 1 || default_threads > MAX_THREADS)
             {
-                fprintf(stderr, "Invalid number of threads: %d\n", max_threads);
+                fprintf(stderr, "Invalid number of threads: %d\n", default_threads);
                 return 1;
             }
         }
         else if (strncmp(argv[i], "-m=", 3) == 0)
         {
-            max_file_size = atoi(argv[i] + 3);
-            if (max_file_size < 1)
+            default_file_size = atoi(argv[i] + 3);
+            if (default_file_size < 1)
             {
-                fprintf(stderr, "Invalid maximum size: %d\n", max_file_size);
+                fprintf(stderr, "Invalid maximum size: %d\n", default_file_size);
                 return 1;
             }
         }
@@ -181,35 +183,35 @@ int main(int argc, char *argv[])
 
     char *dir_path = argv[argc - 1];
 
-    signal(SIGINT, handle_sigint);
-    signal(SIGALRM, print_progress);
+    signal(SIGINT, handleSigInt);
+    signal(SIGALRM, printProgress);
     alarm(5); // Set alarm for the first 5 seconds
 
     pthread_t threads[MAX_THREADS];
-    for (int i = 0; i < max_threads; i++)
+    for (int i = 0; i < default_threads; i++)
     {
-        pthread_create(&threads[i], NULL, thread_start, dir_path);
+        pthread_create(&threads[i], NULL, threadStart, dir_path);
     }
 
-    for (int i = 0; i < max_threads; i++)
+    for (int i = 0; i < default_threads; i++)
     {
         pthread_join(threads[i], NULL);
     }
 
-    pthread_mutex_lock(&result_mutex);
+    pthread_mutex_lock(&file_paths_mutex);
     if (output_fp != NULL && output_fp != stdout)
     {
         fclose(output_fp);
     }
-    pthread_mutex_unlock(&result_mutex);
+    pthread_mutex_unlock(&file_paths_mutex);
 
     // Print the result array with grouped file paths
     printf("[\n");
 
     char *current_extension = NULL;
-    for (int i = 0; i < result_array_index; i++)
+    for (int i = 0; i < file_paths_index; i++)
     {
-        char *extension = strrchr(result_array[i], '.');
+        char *extension = strrchr(file_paths[i], '.');
         if (extension != NULL)
         {
             extension++; // Move past the dot (.)
@@ -230,7 +232,7 @@ int main(int argc, char *argv[])
             printf(",\n");
         }
 
-        printf("%s", result_array[i]);
+        printf("%s", file_paths[i]);
     }
 
     if (current_extension != NULL)
@@ -241,11 +243,11 @@ int main(int argc, char *argv[])
     printf("]\n");
 
     // Free allocated memory
-    for (int i = 0; i < result_array_index; i++)
+    for (int i = 0; i < file_paths_index; i++)
     {
-        free(result_array[i]);
+        free(file_paths[i]);
     }
-    free(result_array);
+    free(file_paths);
 
     return 0;
 }
