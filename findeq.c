@@ -12,7 +12,7 @@
 #define MAX_THREADS 64
 
 int max_threads = 1;
-int max_size = 1024;
+int max_file_size = 1024;
 char *output_file = NULL;
 pthread_mutex_t result_mutex = PTHREAD_MUTEX_INITIALIZER;
 FILE *output_fp = NULL;
@@ -44,8 +44,8 @@ void search_directory(void *dir_path)
             continue;
         }
 
-        char full_path[max_size];
-        snprintf(full_path, max_size, "%s/%s", (char *)dir_path, entry->d_name);
+        char full_path[max_file_size];
+        snprintf(full_path, max_file_size, "%s/%s", (char *)dir_path, entry->d_name);
 
         if (entry->d_type == DT_DIR)
         {
@@ -132,6 +132,12 @@ void print_progress(int signum)
     alarm(5); // Set alarm for the next 5 seconds
 }
 
+void *thread_start(void *dir_path)
+{
+    search_directory(dir_path);
+    return NULL;
+}
+
 int main(int argc, char *argv[])
 {
     if (argc < 2)
@@ -160,10 +166,10 @@ int main(int argc, char *argv[])
         }
         else if (strncmp(argv[i], "-m=", 3) == 0)
         {
-            max_size = atoi(argv[i] + 3);
-            if (max_size < 1)
+            max_file_size = atoi(argv[i] + 3);
+            if (max_file_size < 1)
             {
-                fprintf(stderr, "Invalid maximum size: %d\n", max_size);
+                fprintf(stderr, "Invalid maximum size: %d\n", max_file_size);
                 return 1;
             }
         }
@@ -182,7 +188,7 @@ int main(int argc, char *argv[])
     pthread_t threads[MAX_THREADS];
     for (int i = 0; i < max_threads; i++)
     {
-        pthread_create(&threads[i], NULL, (void *(*)(void *))search_directory, (void *)dir_path);
+        pthread_create(&threads[i], NULL, thread_start, dir_path);
     }
 
     for (int i = 0; i < max_threads; i++)
