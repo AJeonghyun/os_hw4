@@ -1,6 +1,6 @@
 # Command Line
-gcc -o <executable file name> findeq.c -pthread
-./findeq -t=8 -m=1024 -o=output.txt ./Files
+- gcc -o <executable file name> findeq.c -pthread
+- ./findeq -t=8 -m=1024 -o=output.txt ./Files
 
 # Global variables
 - `MAX_THREADS`: A constant that defines the maximum number of threads.
