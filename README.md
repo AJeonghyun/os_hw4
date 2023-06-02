@@ -1,6 +1,18 @@
+# README
+This README file provides information and instructions for the "findeq" program.
+
+# Description
+The "findeq" program is designed to search for files containing equations within a specified directory. It utilizes multithreading to enhance performance by processing multiple files concurrently.
+
 # Command Line
 - gcc -o <executable file name> findeq.c -pthread
 - ./findeq -t=8 -m=1024 -o=output.txt ./Files
+ 
+# Command-line Options
+- -t=N or --threads=N: Set the number of threads to N. The default value is 1, and the maximum allowed value is 64.
+- -m=SIZE or --max-size=SIZE: Set the maximum file size to SIZE. The default value is 1024.
+- -o=FILE or --output=FILE: Specify an output file to save the results. If not provided, the results will be displayed on the console.
+Note: Replace N with the desired number of threads and SIZE with the desired maximum file size.
 
 # Global variables
 - `MAX_THREADS`: A constant that defines the maximum number of threads.
